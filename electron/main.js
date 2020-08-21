@@ -1,14 +1,12 @@
 'use strict';
 
 const {app, protocol, BrowserWindow, dialog, shell, Menu, ipcMain, nativeImage, session} = require('electron');
-// Menu
-const appMenu = require('./menu');
 // Tray
 const tray = require('./tray');
 // AutoLaunch
-var AutoLaunch = require('auto-launch');
+var AutoLaunch = require('auto-launch-patched');
 // Configuration
-const Config = require('electron-config');
+const Config = require('electron-store');
 // Development
 const isDev = require('electron-is-dev');
 // Updater
@@ -17,21 +15,34 @@ const updater = require('./updater');
 var fs = require("fs");
 const path = require('path');
 
+if ( isDev ) app.getVersion = function() { return require('../package.json').version; }; // FOR DEV ONLY, BECAUSE IN DEV RETURNS ELECTRON'S VERSION
+
 // Initial Config
 const config = new Config({
 	 defaults: {
 		 always_on_top: false
 		,hide_menu_bar: false
-		,skip_taskbar: true
+		,tabbar_location: 'top'
+		,hide_tabbar_labels: false
+		,window_display_behavior: 'taskbar_tray'
 		,auto_launch: !isDev
+		,flash_frame: true
 		,window_close_behavior: 'keep_in_tray'
 		,start_minimized: false
 		,systemtray_indicator: true
 		,master_password: false
+		,dont_disturb: false
 		,disable_gpu: process.platform === 'linux'
 		,proxy: false
 		,proxyHost: ''
 		,proxyPort: ''
+		,proxyLogin: ''
+		,proxyPassword: ''
+		,locale: 'en'
+		,enable_hidpi_support: false
+		,user_agent: ''
+		,default_service: 'ramboxTab'
+		,sendStatistics: false
 
 		,x: undefined
 		,y: undefined
@@ -41,79 +52,30 @@ const config = new Config({
 	}
 });
 
-// Configure AutoLaunch
-const appLauncher = new AutoLaunch({
-	 name: process.platform === 'darwin' ? 'Rambox.app' : 'Rambox'
-	,isHiddenOnLaunch: config.get('start_minimized')
-});
-config.get('auto_launch') && !isDev ? appLauncher.enable() : appLauncher.disable();
-
-// this should be placed at top of main.js to handle setup events quickly
-if (handleSquirrelEvent()) {
-	// squirrel event handled and app will exit in 1000ms, so don't do anything else
-	return;
+// Fix issues with HiDPI scaling on Windows platform
+if (config.get('enable_hidpi_support') && (process.platform === 'win32')) {
+	app.commandLine.appendSwitch('high-dpi-support', 'true')
+	app.commandLine.appendSwitch('force-device-scale-factor', '1')
 }
 
-function handleSquirrelEvent() {
-	if (process.argv.length === 1) {
-		return false;
-	}
+app.commandLine.appendSwitch('lang', config.get('locale') === 'en' ? 'en-US' :  config.get('locale'));
 
-	const ChildProcess = require('child_process');
+// Because we build it using Squirrel, it will assign UserModelId automatically, so we match it here to display notifications correctly.
+// https://github.com/electron-userland/electron-builder/issues/362
+app.setAppUserModelId('com.grupovrs.ramboxce');
 
-	const appFolder = path.resolve(process.execPath, '..');
-	const rootAtomFolder = path.resolve(appFolder, '..');
-	const updateDotExe = path.resolve(path.join(rootAtomFolder, 'Update.exe'));
-	const exeName = path.basename(process.execPath);
+// Menu
+const appMenu = require('./menu')(config);
 
-	const spawn = function(command, args) {
-		let spawnedProcess, error;
-
-		try {
-			spawnedProcess = ChildProcess.spawn(command, args, {detached: true});
-		} catch (error) {}
-
-		return spawnedProcess;
-	};
-
-	const spawnUpdate = function(args) {
-		return spawn(updateDotExe, args);
-	};
-
-	const squirrelEvent = process.argv[1];
-	switch (squirrelEvent) {
-		case '--squirrel-install':
-		case '--squirrel-updated':
-		// Optionally do things such as:
-		// - Add your .exe to the PATH
-		// - Write to the registry for things like file associations and
-		//   explorer context menus
-
-		// Install desktop and start menu shortcuts
-		spawnUpdate(['--createShortcut', exeName]);
-
-		setTimeout(app.quit, 1000);
-		return true;
-
-		case '--squirrel-uninstall':
-		// Undo anything you did in the --squirrel-install and
-		// --squirrel-updated handlers
-
-		// Remove desktop and start menu shortcuts
-		spawnUpdate(['--removeShortcut', exeName]);
-
-		setTimeout(app.quit, 1000);
-		return true;
-
-		case '--squirrel-obsolete':
-		// This is called on the outgoing version of your app before
-		// we update to the new version - it's the opposite of
-		// --squirrel-updated
-
-		app.quit();
-		return true;
-	}
-};
+// Configure AutoLaunch
+let appLauncher;
+if ( !isDev ) {
+	appLauncher = new AutoLaunch({
+		 name: 'Rambox'
+		,isHidden: config.get('start_minimized')
+	});
+	config.get('auto_launch') ? appLauncher.enable() : appLauncher.disable();
+}
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -124,7 +86,7 @@ function createWindow () {
 	// Create the browser window using the state information
 	mainWindow = new BrowserWindow({
 		 title: 'Rambox'
-		,icon: __dirname + '/../resources/Icon.ico'
+		,icon: __dirname + '/../resources/Icon.' + (process.platform === 'linux' ? 'png' : 'ico')
 		,backgroundColor: '#FFF'
 		,x: config.get('x')
 		,y: config.get('y')
@@ -132,17 +94,32 @@ function createWindow () {
 		,height: config.get('height')
 		,alwaysOnTop: config.get('always_on_top')
 		,autoHideMenuBar: config.get('hide_menu_bar')
-		,skipTaskbar: !config.get('skip_taskbar')
+		,skipTaskbar: config.get('window_display_behavior') === 'show_trayIcon'
 		,show: !config.get('start_minimized')
+		,acceptFirstMouse: true
 		,webPreferences: {
-			 webSecurity: false
-			,nodeIntegration: true
-			,plugins: true
+			plugins: true
 			,partition: 'persist:rambox'
+			,nodeIntegration: true
+			,webviewTag: true
 		}
 	});
 
-	if ( !config.get('start_minimized') && config.get('maximized') ) mainWindow.maximize();
+	// Check if user has defined a custom User-Agent
+	if ( config.get('user_agent').length > 0 ) mainWindow.webContents.setUserAgent( config.get('user_agent') );
+	
+	// Wait for the mainWindow.loadURL(..) and the optional mainWindow.webContents.openDevTools()
+	// to be finished before minimizing
+	config.get('start_minimized') && mainWindow.webContents.once('did-finish-load', () => config.get('window_display_behavior') === 'show_trayIcon' ? mainWindow.hide() :  mainWindow.minimize());
+
+	// Check if the window its outside of the view (ex: multi monitor setup)
+	const { positionOnScreen } = require('./utils/positionOnScreen');
+	const inBounds = positionOnScreen([config.get('x'), config.get('y')]);
+	if ( inBounds ) {
+		mainWindow.setPosition(config.get('x'), config.get('y'));
+	} else {
+		mainWindow.center();
+	}
 
 	process.setMaxListeners(10000);
 
@@ -156,15 +133,28 @@ function createWindow () {
 
 	tray.create(mainWindow, config);
 
-	if ( fs.existsSync(path.resolve(path.dirname(process.execPath), '..', 'Update.exe')) ) updater.initialize(mainWindow);
+	if ( process.argv.indexOf('--without-update') === -1 ) updater.initialize(mainWindow);
 
 	// Open links in default browser
 	mainWindow.webContents.on('new-window', function(e, url, frameName, disposition, options) {
-		if ( disposition !== 'foreground-tab' ) return;
 		const protocol = require('url').parse(url).protocol;
-		if (protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:') {
-			e.preventDefault();
-			shell.openExternal(url);
+		switch ( disposition ) {
+			case 'new-window':
+				e.preventDefault();
+				const win = new BrowserWindow(options);
+				if ( config.get('user_agent').length > 0 ) win.webContents.setUserAgent( config.get('user_agent') );
+				win.once('ready-to-show', () => win.show());
+				win.loadURL(url);
+				e.newGuest = win;
+				break;
+			case 'foreground-tab':
+				if (protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:') {
+					e.preventDefault();
+					shell.openExternal(url);
+				}
+				break;
+			default:
+				break;
 		}
 	});
 
@@ -184,10 +174,7 @@ function createWindow () {
 		// Navigate the window forward when the user hits their mouse forward button
 		if ( cmd === 'browser-forward' ) mainWindow.webContents.executeJavaScript('if(Ext.cq1("app-main")) Ext.cq1("app-main").getActiveTab().goForward();');
 	});
-	mainWindow.on('focus', (e) => {
-		// Make focus on current service when user use Alt + Tab to activate Rambox
-		mainWindow.webContents.executeJavaScript('if(Ext.cq1("app-main")) Ext.cq1("app-main").fireEvent("tabchange", Ext.cq1("app-main"), Ext.cq1("app-main").getActiveTab());');
-	});
+
 	// Emitted when the window is closed.
 	mainWindow.on('close', function(e) {
 		if ( !isQuitting ) {
@@ -215,9 +202,19 @@ function createWindow () {
 			}
 		}
 	});
+	mainWindow.on('minimize', function(e) {
+		if ( config.get('window_display_behavior') === 'show_trayIcon' ) mainWindow.setSkipTaskbar(true);
+	});
+	mainWindow.on('restore', function(e) {
+		if ( config.get('window_display_behavior') === 'show_taskbar' ) mainWindow.setSkipTaskbar(false);
+	});
+	mainWindow.on('show', function(e) {
+		if ( config.get('window_display_behavior') !== 'show_trayIcon' ) mainWindow.setSkipTaskbar(false);
+	});
 	mainWindow.on('closed', function(e) {
 		mainWindow = null;
 	});
+	mainWindow.once('focus', () => mainWindow.flashFrame(false));
 }
 
 let mainMasterPasswordWindow;
@@ -225,6 +222,9 @@ function createMasterPasswordWindow() {
 	mainMasterPasswordWindow = new BrowserWindow({
 		 backgroundColor: '#0675A0'
 		,frame: false
+		,webPreferences: {
+			nodeIntegration: true
+		}
 	});
 	// Open the DevTools.
 	if ( isDev ) mainMasterPasswordWindow.webContents.openDevTools();
@@ -234,45 +234,68 @@ function createMasterPasswordWindow() {
 }
 
 function updateBadge(title) {
+	title = title.split(" - ")[0]; //Discard service name if present, could also contain digits
 	var messageCount = title.match(/\d+/g) ? parseInt(title.match(/\d+/g).join("")) : 0;
+	messageCount = isNaN(messageCount) ? 0 : messageCount;
 
 	tray.setBadge(messageCount, config.get('systemtray_indicator'));
 
-	if (process.platform === 'win32') { // Windows
-		if (messageCount === 0) {
-			mainWindow.setOverlayIcon(null, "");
-			return;
-		}
-
+	if (process.platform === 'win32') {
+		if (messageCount === 0) return mainWindow.setOverlayIcon(null, '');
 		mainWindow.webContents.send('setBadge', messageCount);
-	} else { // macOS
+	} else { // macOS & Linux
 		app.setBadgeCount(messageCount);
 	}
+
+	if ( messageCount > 0 && !mainWindow.isFocused() && !config.get('dont_disturb') && config.get('flash_frame') ) mainWindow.flashFrame(true);
 }
 
 ipcMain.on('setBadge', function(event, messageCount, value) {
-	var img = nativeImage.createFromDataURL(value);
-	mainWindow.setOverlayIcon(img, messageCount.toString());
+	mainWindow.setOverlayIcon(nativeImage.createFromDataURL(value), messageCount.toString());
 });
 
 ipcMain.on('getConfig', function(event, arg) {
 	event.returnValue = config.store;
 });
-
+ipcMain.on('sConfig', function(event, values) {
+	config.set(values);
+	event.returnValue = config;
+});
 ipcMain.on('setConfig', function(event, values) {
 	config.set(values);
 
 	// hide_menu_bar
 	mainWindow.setAutoHideMenuBar(values.hide_menu_bar);
 	if ( !values.hide_menu_bar ) mainWindow.setMenuBarVisibility(true);
-	// skip_taskbar
-	mainWindow.setSkipTaskbar(!values.skip_taskbar);
 	// always_on_top
 	mainWindow.setAlwaysOnTop(values.always_on_top);
 	// auto_launch
-	values.auto_launch ? appLauncher.enable() : appLauncher.disable();
+	if ( !isDev ) values.auto_launch ? appLauncher.enable() : appLauncher.disable();
 	// systemtray_indicator
 	updateBadge(mainWindow.getTitle());
+
+	mainWindow.webContents.executeJavaScript('(function(a){if(a)a.controller.initialize(a)})(Ext.cq1("app-main"))');
+
+	switch ( values.window_display_behavior ) {
+		case 'show_taskbar':
+			mainWindow.setSkipTaskbar(false);
+			tray.destroy();
+			break;
+		case 'show_trayIcon':
+			mainWindow.setSkipTaskbar(true);
+			tray.create(mainWindow, config);
+			break;
+		case 'taskbar_tray':
+			mainWindow.setSkipTaskbar(false);
+			tray.create(mainWindow, config);
+			break;
+		default:
+			break;
+	}
+});
+
+ipcMain.on('sendStatistics', function(event) {
+	event.returnValue = config.get('sendStatistics');
 });
 
 ipcMain.on('validateMasterPassword', function(event, pass) {
@@ -286,24 +309,44 @@ ipcMain.on('validateMasterPassword', function(event, pass) {
 
 // Handle Service Notifications
 ipcMain.on('setServiceNotifications', function(event, partition, op) {
+	if ( partition === null ) return;
 	session.fromPartition(partition).setPermissionRequestHandler(function(webContents, permission, callback) {
 		if (permission === 'notifications') return callback(op);
 		callback(true)
 	});
 });
 
-const shouldQuit = app.makeSingleInstance((commandLine, workingDirectory) => {
+ipcMain.on('setDontDisturb', function(event, arg) {
+	config.set('dont_disturb', arg);
+});
+
+// Reload app
+ipcMain.on('reloadApp', function(event) {
+	mainWindow.reload();
+});
+
+// Relaunch app
+ipcMain.on('relaunchApp', function(event) {
+	app.relaunch();
+	app.exit(0);
+});
+
+const shouldQuit = app.requestSingleInstanceLock();
+if (!shouldQuit) {
+	app.quit();
+	return;
+}
+app.on('second-instance', (event, commandLine, workingDirectory) => {
 	// Someone tried to run a second instance, we should focus our window.
 	if (mainWindow) {
 		if (mainWindow.isMinimized()) mainWindow.restore();
 		mainWindow.focus();
+		mainWindow.show();
+		mainWindow.setSkipTaskbar(false);
+		if (app.dock && app.dock.show) app.dock.show();
 	}
 });
 
-if (shouldQuit) {
-	app.quit();
-	return;
-}
 
 // Code for downloading images as temporal files
 // Credit: Ghetto Skype (https://github.com/stanfieldr/ghetto-skype)
@@ -327,6 +370,8 @@ ipcMain.on('image:download', function(event, url, partition) {
 			partition: partition
 		}
 	});
+
+	if ( config.get('user_agent').length > 0 ) tmpWindow.webContents.setUserAgent( config.get('user_agent') );
 
 	tmpWindow.webContents.session.once('will-download', (event, downloadItem) => {
 		imageCache[url] = file = {
@@ -361,13 +406,63 @@ ipcMain.on('image:popup', function(event, url, partition) {
 		}
 	});
 
+	if ( config.get('user_agent').length > 0 ) tmpWindow.webContents.setUserAgent( config.get('user_agent') );
+
 	tmpWindow.maximize();
 
 	tmpWindow.loadURL(url);
 });
 
+ipcMain.on('toggleWin', function(event, allwaysShow) {
+	if ( config.get('window_display_behavior') !== 'show_trayIcon' ) mainWindow.setSkipTaskbar(false);
+	if ( !mainWindow.isMinimized() && mainWindow.isMaximized() && mainWindow.isVisible() ) { // Maximized
+		!allwaysShow ? mainWindow.close() : mainWindow.show();
+	} else if ( mainWindow.isMinimized() && !mainWindow.isMaximized() && !mainWindow.isVisible() ) { // Minimized
+		if ( process.platform === 'linux' ) {
+			mainWindow.minimize();
+			mainWindow.restore();
+			mainWindow.focus();
+			return
+		}
+		mainWindow.restore();
+	} else if ( !mainWindow.isMinimized() && !mainWindow.isMaximized() && mainWindow.isVisible() ) { // Windowed mode
+		!allwaysShow ? mainWindow.close() : mainWindow.show();
+	} else if ( mainWindow.isMinimized() && !mainWindow.isMaximized() && mainWindow.isVisible() ) { // Closed to taskbar
+		if ( process.platform === 'linux' ) {
+			mainWindow.minimize();
+			mainWindow.restore();
+			mainWindow.focus();
+			return
+		}
+		mainWindow.restore();
+	} else if ( !mainWindow.isMinimized() && mainWindow.isMaximized() && !mainWindow.isVisible() ) { // Closed maximized to tray
+		mainWindow.show();
+	} else if ( !mainWindow.isMinimized() && !mainWindow.isMaximized() && !mainWindow.isVisible() ) { // Closed windowed to tray
+		mainWindow.show();
+	} else if ( mainWindow.isMinimized() && !mainWindow.isMaximized() && !mainWindow.isVisible() ) { // Closed minimized to tray
+		mainWindow.show();
+	} else {
+		if ( process.platform === 'linux' ) {
+			mainWindow.minimize();
+			mainWindow.maximize();
+			mainWindow.focus();
+			return
+		}
+		mainWindow.restore();
+	}
+});
+
 // Proxy
-if ( config.get('proxy') ) app.commandLine.appendSwitch('proxy-server', config.get('proxyHost')+':'+config.get('proxyPort'));
+if ( config.get('proxy') ) {
+	app.commandLine.appendSwitch('proxy-server', config.get('proxyHost')+':'+config.get('proxyPort'));
+	app.on('login', (event, webContents, request, authInfo, callback) => {
+		if(!authInfo.isProxy)
+			return;
+
+		event.preventDefault();
+		callback(config.get('proxyLogin'), config.get('proxyPassword'))
+	})
+}
 
 // Disable GPU Acceleration for Linux
 // to prevent White Page bug
@@ -397,7 +492,9 @@ app.on('activate', function () {
 		config.get('master_password') ? createMasterPasswordWindow() : createWindow();
 	}
 
-	if ( mainWindow !== null ) mainWindow.show();
+	if (mainWindow) {
+		mainWindow.show();
+	}
 });
 
 app.on('before-quit', function () {

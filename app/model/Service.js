@@ -38,6 +38,14 @@ Ext.define('Rambox.model.Service', {
 		,type: 'boolean'
 		,defaultValue: false
 	},{
+		 name: 'tabname'
+		,type: 'boolean'
+		,defaultValue: true
+	},{
+		 name: 'statusbar'
+		,type: 'boolean'
+		,defaultValue: true
+	},{
 		 name: 'displayTabUnreadCounter'
 		,type: 'boolean'
 		,defaultValue: true
@@ -48,7 +56,7 @@ Ext.define('Rambox.model.Service', {
 	},{
 		 name: 'trust'
 		,type: 'boolean'
-		,defaultValue: true
+		,defaultValue: false
 	},{
 		 name: 'enabled'
 		,type: 'boolean'

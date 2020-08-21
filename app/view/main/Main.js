@@ -25,6 +25,17 @@ Ext.define('Rambox.view.main.Main', {
 	,autoRender: true
 	,autoShow: true
 	,deferredRender: false
+	,tabBar: {
+		 id: 'mainTabBar'
+		,cls: JSON.parse(localStorage.getItem('dontDisturb')) ? 'dontdisturb' : ''
+		,items: [{
+			 xtype: 'button'
+			,html: '<span class="fa fa-heart" style="color:red;font-size:16px;cursor:pointer;padding:0 5px;"></span>'
+			,baseCls: ''
+			,tooltip: locale['app.main[25]']
+			,href: 'https://rambox.app/donate.html'
+		}]
+	}
 	,items: [
 		{
 			 icon: 'resources/IconTray@2x.png'
@@ -37,9 +48,9 @@ Ext.define('Rambox.view.main.Main', {
 			,items: [
 				{
 					 xtype: 'panel'
-					,title: 'Add a new Service'
+					,title: locale['app.main[0]']
 					,margin: '0 5 0 0'
-					,flex: 1
+					,flex: 2
 					,header: { height: 50 }
 					,tools: [
 						{
@@ -47,7 +58,7 @@ Ext.define('Rambox.view.main.Main', {
 							,items: [
 								{
 									 xtype: 'checkbox'
-									,boxLabel: 'Messaging'
+									,boxLabel: locale['app.main[1]']
 									,name: 'messaging'
 									,checked: true
 									,uncheckedValue: false
@@ -55,7 +66,7 @@ Ext.define('Rambox.view.main.Main', {
 								}
 								,{
 									 xtype: 'checkbox'
-									,boxLabel: 'Email'
+									,boxLabel: locale['app.main[2]']
 									,margin: '0 10 0 10'
 									,name: 'email'
 									,checked: true
@@ -99,12 +110,12 @@ Ext.define('Rambox.view.main.Main', {
 							,tpl: [
 								 '<tpl for=".">'
 									,'<div class="service" data-qtip="{description}">'
-										,'<img src="resources/icons/{logo}" width="48" />'
+										,'<img src="https://firebasestorage.googleapis.com/v0/b/rambox-d1326.appspot.com/o/services%2F{logo}?alt=media&token=49036238-8f37-4f08-a7e5-1563be94c36e" width="48" />'
 										,'<span>{name}</span>'
 									,'</div>'
 								,'</tpl>'
 							]
-							,emptyText: '<div style="padding: 20px;">No services found... Try another search.</div>'
+							,emptyText: '<div style="padding: 20px;">'+locale['app.main[3]']+'</div>'
 							,listeners: {
 								itemclick: 'onNewServiceSelect'
 							}
@@ -113,7 +124,7 @@ Ext.define('Rambox.view.main.Main', {
 				}
 				,{
 					 xtype: 'grid'
-					,title: 'Enabled Services'
+					,title: locale['app.main[4]']
 					,store: 'Services'
 					,hideHeaders: true
 					,margin: '0 0 0 5'
@@ -123,7 +134,7 @@ Ext.define('Rambox.view.main.Main', {
 						{
 							 ftype:'grouping'
 							,collapsible: false
-							,groupHeaderTpl: '{columnName:uppercase}: {name:capitalize} ({rows.length} Item{[values.rows.length > 1 ? "s" : ""]})'
+							,groupHeaderTpl: '{columnName:uppercase}: {name:capitalize} ({rows.length} {[values.rows.length > 1 ? "'+locale['app.main[9]']+'" : "'+locale['app.main[8]']+'"]})'
 						}
 					]
 					,plugins: {
@@ -135,16 +146,19 @@ Ext.define('Rambox.view.main.Main', {
 							 xtype: 'button'
 							,glyph: 'xf1f8@FontAwesome'
 							,baseCls: ''
-							,tooltip: 'Remove all Services'
+							,tooltip: locale['app.main[10]']
 							,handler: 'removeAllServices'
+							,bind: {
+								disabled: '{emptyServices}'
+							}
 						}
 					]
 					,columns: [
 						{
 							 xtype: 'templatecolumn'
-							,width: 50
+							,width: 52
 							,variableRowHeight: true
-							,tpl: '<img src="{[ values.type !== \"custom\" ? \"resources/icons/\"+values.logo : (values.logo == \"\" ? \"resources/icons/custom.png\" : values.logo) ]}" data-qtip="{type:capitalize}" width="32" />'
+							,tpl: '<img src="{[ values.type !== \"custom\" ? \"https://firebasestorage.googleapis.com/v0/b/rambox-d1326.appspot.com/o/services%2F\"+values.logo+\"?alt=media\" : (values.logo == \"\" ? \"https://firebasestorage.googleapis.com/v0/b/rambox-d1326.appspot.com/o/services%2Fcustom.png?alt=media\" : values.logo) ]}" data-qtip="{type:capitalize}" width="32" style="{[ values.enabled ? \"-webkit-filter: grayscale(0)\" : \"-webkit-filter: grayscale(1)\" ]}" />'
 						}
 						,{
 							 dataIndex: 'name'
@@ -162,14 +176,14 @@ Ext.define('Rambox.view.main.Main', {
 							,items: [
 								{
 									 glyph: 0xf1f7
-									,tooltip: 'Prevent notifications'
+									,tooltip: locale['app.main[11]']
 									,getClass: function( value, metaData, record, rowIndex, colIndex, store, view ){
 										if ( record.get('notifications') ) return 'x-hidden';
 									}
 								}
 								,{
 									 glyph: 0xf026
-									,tooltip: 'Muted'
+									,tooltip: locale['app.main[12]']
 									,getClass: function( value, metaData, record, rowIndex, colIndex, store, view ){
 										if ( !record.get('muted') ) return 'x-hidden';
 									}
@@ -183,13 +197,13 @@ Ext.define('Rambox.view.main.Main', {
 							,items: [
 								{
 									 glyph: 0xf013
-									,tooltip: 'Configure'
+									,tooltip: locale['app.main[13]']
 									,handler: 'configureService'
 									,getClass: function(){ return 'x-hidden-display'; }
 								}
 								,{
 									 glyph: 0xf1f8
-									,tooltip: 'Remove'
+									,tooltip: locale['app.main[14]']
 									,handler: 'removeService'
 									,getClass: function(){ return 'x-hidden-display'; }
 								}
@@ -209,7 +223,7 @@ Ext.define('Rambox.view.main.Main', {
 						}
 					]
 					,viewConfig: {
-						 emptyText: 'No services added...'
+						 emptyText: locale['app.main[15]']
 						,forceFit: true
 						,stripeRows: true
 					}
@@ -227,9 +241,9 @@ Ext.define('Rambox.view.main.Main', {
 				,overflowHandler: 'menu'
 				,items: [
 					{
-						 glyph: 'xf1f7@FontAwesome'
-						,text: 'Don\'t Disturb: '+(JSON.parse(localStorage.getItem('dontDisturb')) ? 'ON' : 'OFF')
-						,tooltip: 'Disable notifications and sounds in all services. Perfect to be concentrated and focused.<br/><b>Shortcut key: F1</b>'
+						 glyph: JSON.parse(localStorage.getItem('dontDisturb')) ? 'xf1f7@FontAwesome' : 'xf0f3@FontAwesome'
+						,text: locale['app.main[16]']+': '+(JSON.parse(localStorage.getItem('dontDisturb')) ? locale['app.window[20]'] : locale['app.window[21]'])
+						,tooltip: locale['app.main[17]']+'<br/><b>'+locale['app.main[18]']+(require('electron').remote.process.platform === 'darwin' ? ': Cmd + Alt + D</b>' : ': Alt + Shift + D</b>')
 						,enableToggle: true
 						,handler: 'dontDisturb'
 						,reference: 'disturbBtn'
@@ -238,10 +252,15 @@ Ext.define('Rambox.view.main.Main', {
 					}
 					,{
 						 glyph: 'xf023@FontAwesome'
-						,text: 'Lock Rambox'
-						,tooltip: 'Lock this app if you will be away for a period of time.<br/><b>Shortcut key: F2</b>'
+						,text: locale['app.main[19]']
+						,tooltip: locale['app.main[20]']+'<br/><b>'+locale['app.main[18]']+(require('electron').remote.process.platform === 'darwin' ? ': Cmd + Alt + L</b>' : ': Alt + Shift + L</b>')
 						,handler: 'lockRambox'
 						,id: 'lockRamboxBtn'
+					},'-'
+					,{
+						 html: '<span style="color:#FFF;cursor:pointer;"><span class="fa fa-star" style="color:#F8D64E;font-size:16px;padding:0 5px;"></span> Try Rambox Pro</span>'
+						,href: 'https://rambox.pro/api/download'
+						,baseCls: ''
 					}
 					,'->'
 					,{
@@ -294,24 +313,24 @@ Ext.define('Rambox.view.main.Main', {
 							}
 							,'-'
 							,{
-								 text: 'Logout'
+								 text: locale['app.main[21]']
 								,glyph: 'xf08b@FontAwesome'
 								,handler: 'logout'
 							}
 						]
 					}
 					,{
-						 text: 'Login'
+						 text: locale['app.main[22]']
 						,icon: 'resources/auth0.png'
 						,id: 'loginBtn'
-						,tooltip: 'Login to save your configuration (no credentials stored) to sync with all your computers.<br /><br /><i>Powered by Auth0 (http://auth0.com)</i>'
+						,tooltip: locale['app.main[23]']+'<br /><br /><i>'+locale['app.main[24]']+' Auth0 (https://auth0.com)</i>'
 						,bind: {
 							hidden: '{username}'
 						}
 						,handler: 'login'
 					}
 					,{
-						 tooltip: 'Preferences'
+						 tooltip: locale['preferences[0]']
 						,glyph: 'xf013@FontAwesome'
 						,handler: 'openPreferences'
 					}
@@ -327,9 +346,9 @@ Ext.define('Rambox.view.main.Main', {
 							,pressed: true
 						}
 						,{
-							 text: 'Donation'
+							 text: locale['app.main[25]']
 							,glyph: 'xf21e@FontAwesome'
-							,handler: 'showDonate'
+							,href: 'https://rambox.app/donate.html'
 						}
 						,{
 							 text: 'Translation'
@@ -341,7 +360,7 @@ Ext.define('Rambox.view.main.Main', {
 				,'->'
 				,{
 					 xtype: 'label'
-					,html: '<span class="fa fa-code" style="color:black;"></span> with <span class="fa fa-heart" style="color:red;"></span> from <img src="resources/flag.png" alt="Argentina" data-qtip="Argentina" /> as an Open Source project.'
+					,html: '<span class="fa fa-code" style="color:black;"></span> '+locale['app.main[26]']+' <span class="fa fa-heart" style="color:red;"></span> '+locale['app.main[27]'].replace('Argentina', '<img src="resources/flag.png" alt="Argentina" data-qtip="Argentina" />')
 				}
 				,'->'
 				,{
@@ -362,7 +381,7 @@ Ext.define('Rambox.view.main.Main', {
 						}
 						,{
 							 glyph: 'xf09b@FontAwesome'
-							,href: 'https://www.github.com/saenzramiro/rambox'
+							,href: 'https://github.com/ramboxapp/community-edition'
 						}
 					]
 				}
@@ -376,5 +395,6 @@ Ext.define('Rambox.view.main.Main', {
 		,add: 'updatePositions'
 		,remove: 'updatePositions'
 		,childmove: 'updatePositions'
+		,boxready: 'initialize'
 	}
 });

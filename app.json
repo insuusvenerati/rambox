@@ -40,6 +40,7 @@
      *      ]
      */
     "requires": [
+		"ext-locale"
     ],
 
     /**
@@ -103,21 +104,14 @@
             "path": "${framework.dir}/build/ext-all-rtl.js"
         },
         {
-            "path": "resources/js/auth0-7.1.0.min.js",
-			"remote": true
-        },
-		{
-            "path": "resources/js/lock-10.2.2/lock.min.js",
-			"remote": true
-        },
-        {
             "path": "resources/js/GALocalStorage.js"
         },
         {
             "path": "resources/js/loadscreen.js"
         },
         {
-            "path": "env.js"
+            "path": "env.js",
+			"remote": true
         },
         {
             "path": "app.js",
@@ -261,7 +255,7 @@
      *
      */
     "output": {
-        "base": "${workspace.build.dir}/${build.environment}/${app.name}",
+        "base": "../rambox-build",
         "appCache": {
             "enable": true
         }
@@ -297,6 +291,9 @@
      */
     "resources": [
 		"electron",
+		"env.js",
+		"package.json",
+		"package-lock.json",
 		"masterpassword.html"
     ],
 

@@ -13,6 +13,7 @@ Ext.define('Rambox.model.ServiceList', {
 	},{
 		 name: 'description'
 		,type: 'string'
+		,defaultValue: locale['services[27]']
 	},{
 		 name: 'url'
 		,type: 'string'
@@ -45,10 +46,6 @@ Ext.define('Rambox.model.ServiceList', {
 		,defaultValue: ''
 	},{
 		 name: 'custom_domain'
-		,type: 'boolean'
-		,defaultValue: false
-	},{
-		 name: 'dont_update_unread_from_title'
 		,type: 'boolean'
 		,defaultValue: false
 	}]

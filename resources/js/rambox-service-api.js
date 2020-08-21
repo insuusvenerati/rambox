@@ -3,6 +3,7 @@
  */
 
 const { ipcRenderer } = require('electron');
+const { ContextMenuBuilder, ContextMenuListener } = require('electron-contextmenu-wrapper');
 
 /**
  * Make the Rambox API available via a global "rambox" variable.
@@ -12,7 +13,7 @@ const { ipcRenderer } = require('electron');
 window.rambox = {};
 
 /**
- * Sets the unraed count of the tab.
+ * Sets the unread count of the tab.
  *
  * @param {*} count	The unread count
  */
@@ -38,9 +39,19 @@ Notification = function(title, options) {
 		ipcRenderer.sendToHost('rambox.showWindowAndActivateTab');
 	});
 
+	//It seems that gmail is checking if such event handler func are available. Just remplacing them by a void function that is always returning true is making the thing right!
+	notification.addEventListener = function() {return true};
+	notification.attachEvent = function() {return true};
+	notification.addListener = function() {return true};
+
 	return notification;
 }
 
 Notification.prototype = NativeNotification.prototype;
 Notification.permission = NativeNotification.permission;
 Notification.requestPermission = NativeNotification.requestPermission.bind(Notification);
+
+window.rambox.contextMenuBuilder = new ContextMenuBuilder();
+window.rambox.contextMenuListener = new ContextMenuListener(function(event, info) {
+	window.rambox.contextMenuBuilder.showPopupMenu(info);
+});

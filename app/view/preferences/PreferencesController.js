@@ -39,6 +39,28 @@ Ext.define('Rambox.view.preferences.PreferencesController', {
 		// Proxy
 		if ( values.proxy && (Ext.isEmpty(values.proxyHost) || Ext.isEmpty(values.proxyPort)) ) return;
 
+		// Display behaviour
+		if ( values.window_display_behavior === 'show_taskbar' && values.window_close_behavior === 'keep_in_tray' ) {
+			Ext.Msg.alert('Action required', 'You need to change the window closing behaviour because "Keep in tray" is not possible.');
+			return;
+		}
+
+		// User Agent
+		if ( values.user_agent !== ipc.sendSync('getConfig').user_agent ) {
+			Ext.Msg.confirm('Action required', 'To change the user agent of Rambox, you need to reload the app. Do you want to do it now?', function(btnId) {
+				if ( btnId === 'yes' ) ipc.send('relaunchApp');
+			});
+		}
+
+		// Locale
+		if ( values.locale !== ipc.sendSync('getConfig').locale ) {
+			localStorage.setItem('locale', values.locale);
+			localStorage.setItem('locale-auth0', me.getView().down('form').down('combo[name="locale"]').getSelection().get('auth0'));
+			Ext.Msg.confirm('Action required', 'To change the language of Rambox, you need to reload the app. Do you want to do it now?', function(btnId) {
+				if ( btnId === 'yes' ) ipc.send('relaunchApp');
+			});
+		}
+
 		ipc.send('setConfig', values);
 		me.getView().close();
 	}

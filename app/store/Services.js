@@ -8,8 +8,9 @@ Ext.define('Rambox.store.Services', {
 
 	,model: 'Rambox.model.Service'
 
-	,autoLoad: true
+	,autoLoad: false
 	,autoSync: true
+	,pageSize: 0
 
 	,groupField: 'align'
 	,sorters: [
@@ -20,23 +21,19 @@ Ext.define('Rambox.store.Services', {
 	]
 
 	,listeners: {
-		load: function( store, records, successful ) {
+		 load: function( store, records, successful ) {
 			Ext.cq1('app-main').suspendEvent('add');
 
 			var servicesLeft = [];
 			var servicesRight = [];
 			store.each(function(service) {
-				// Fix some services with bad IDs
-				// TODO: Remove in next release
-				switch ( service.get('type') ) {
-					case 'office365':
-						service.set('type', 'outlook365');
-						break;
-					case ' irccloud':
-						service.set('type', 'irccloud');
-						break;
-					default:
-						break;
+				// If the service is disabled, we dont add it to tab bar
+				if ( !service.get('enabled') ) return;
+
+				// Rebranded app
+				if ( service.get('type') === 'spark' ) {
+					service.set('type', 'webexteams');
+					service.set('logo', 'webexteams.png');
 				}
 
 				var cfg = {
@@ -51,6 +48,7 @@ Ext.define('Rambox.store.Services', {
 					,displayTabUnreadCounter: service.get('displayTabUnreadCounter')
 					,enabled: service.get('enabled')
 					,record: service
+					,useragent: ipc.sendSync('getConfig').user_agent
 					,tabConfig: {
 						service: service
 					}
@@ -62,8 +60,25 @@ Ext.define('Rambox.store.Services', {
 			if ( !Ext.isEmpty(servicesLeft) ) Ext.cq1('app-main').insert(1, servicesLeft);
 			if ( !Ext.isEmpty(servicesRight) ) Ext.cq1('app-main').add(servicesRight);
 
+			// Set default active service
+			const config = ipc.sendSync('getConfig');
+			switch ( config.default_service ) {
+				case 'last':
+					Ext.cq1('app-main').setActiveTab(localStorage.getItem('last_active_service'));
+					break;
+				case 'ramboxTab':
+					break;
+				default:
+					if ( Ext.getCmp('tab_'+config.default_service) ) Ext.cq1('app-main').setActiveTab('tab_'+config.default_service);
+					break;
+			}
+
 			store.suspendEvent('load');
 			Ext.cq1('app-main').resumeEvent('add');
+		}
+		,datachanged: function(store, eOpts) {
+			var isEmpty = store.getCount() > 0 ? false : true;
+			Ext.cq1('app-main').getViewModel().set('emptyServices', isEmpty);
 		}
 	}
 });

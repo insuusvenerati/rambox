@@ -27,15 +27,16 @@ Ext.define('Rambox.view.add.Add',{
 	,initComponent: function() {
 		var me = this;
 
-		me.title = (!me.edit ? 'Add ' : 'Edit ') + me.record.get('name');
-		me.icon = me.record.get('type') === 'custom' ? (!me.edit ? 'resources/icons/custom.png' : (me.record.get('logo') === '' ? 'resources/icons/custom.png' : me.record.get('logo'))) : 'resources/icons/'+me.record.get('logo');
+		me.title = (!me.edit ? locale['app.window[0]'] : locale['app.window[1]']) + ' ' + me.record.get('name');
+		me.icon = me.record.get('type') === 'custom' ? (!me.edit ? 'resources/icons/custom.png' : (me.record.get('logo') === '' ? 'resources/icons/custom.png' : me.record.get('logo'))) : 'https://firebasestorage.googleapis.com/v0/b/rambox-d1326.appspot.com/o/services%2F'+me.record.get('logo')+'?alt=media';
 		me.items = [
 			{
 				 xtype: 'form'
 				,items: [
 					{
 						 xtype: 'textfield'
-						,fieldLabel: 'Name'
+						,fieldLabel: locale['app.window[2]']
+						,labelWidth: 40
 						,value: me.record.get('type') === 'custom' ? (me.edit ? me.record.get('name') : '') : me.record.get('name')
 						,name: 'serviceName'
 						,allowBlank: true
@@ -43,21 +44,37 @@ Ext.define('Rambox.view.add.Add',{
 					}
 					,{
 						 xtype: 'container'
-						,layout: 'column'
+						,layout: 'hbox'
 						,hidden: me.edit ? me.service.get('url').indexOf('___') === -1 && !me.service.get('custom_domain') : me.record.get('url').indexOf('___') === -1 && !me.record.get('custom_domain')
 						,items: [
 							{
+								 xtype: 'label'
+								,text: locale['app.window[17]']+':'
+								,width: 45
+							}
+							,{
+								 xtype: 'button'
+								,text: me.edit ? me.service.get('url').split('___')[0] : me.record.get('url').split('___')[0]
+								,style: 'border-top-right-radius:0;border-bottom-right-radius:0;'
+								,hidden: me.edit ? me.service.get('url').indexOf('___') === -1 ? true : me.service.get('type') === 'custom' || me.service.get('url') === '___' : me.record.get('url').indexOf('___') === -1 ? true : me.record.get('type') === 'custom' || me.record.get('url') === '___'
+							}
+							,{
 								 xtype: 'textfield'
-								,fieldLabel: 'URL'
 								,name: 'url'
-								,value: me.edit && me.service.get('url').indexOf('___') >= 0 ? me.record.get('url').replace(me.service.get('url').split('___')[0], '').replace(me.service.get('url').split('___')[1], '') : (me.record.get('url').indexOf('___') === -1 ? me.record.get('url') : '')
+								,value: me.edit && me.service.get('url').indexOf('___') >= 0 ? me.record.get('url').replace(me.service.get('url').split('___')[0], '').replace(me.service.get('url').split('___')[1], '').endsWith('/') ? me.record.get('url').replace(me.service.get('url').split('___')[0], '').replace(me.service.get('url').split('___')[1], '').slice(0, -1) : me.record.get('url').replace(me.service.get('url').split('___')[0], '').replace(me.service.get('url').split('___')[1], '') : (me.record.get('url').indexOf('___') === -1 ? me.record.get('url') : '')
 								,readOnly: me.edit ? (me.service.get('custom_domain') && me.service.get('url') === me.record.get('url') ? true : me.service.get('url').indexOf('___') === -1 && !me.service.get('custom_domain')) : me.record.get('url').indexOf('___') === -1 && me.record.get('custom_domain')
 								,allowBlank: false
 								,submitEmptyText: false
-								,emptyText: me.record.get('url') === '___' ? 'http://' : ''
-								,vtype: me.record.get('url') === '___' ? 'url' : ''
-								,width: 275
-								,listeners: { specialkey: 'onEnter' }
+								,emptyText: me.record.get('url') === '___' ? 'https://' : ''
+								,validator: function(v) {
+									if ( !me.edit ? me.record.get('url') !== '___' : me.service.get('url').indexOf('https://___') === 0 ) return true
+									if ( v.match(/^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,}))\.?)(?::\d{2,5})?(?:[/?#]\S*)?$/i) === null && v.match(/^https:\/\/\w+(\.\w+)*(:[0-9]+)?\/?(\/[.\w]*)*$/) === null && v.match(/^http:\/\/\w+(\.\w+)*(:[0-9]+)?\/?(\/[.\w]*)*$/) === null ) return false;
+									return true;
+								}
+								,listeners: {
+									specialkey: 'onEnter'
+								}
+								,flex: 1
 							}
 							,{
 								 xtype: 'cycle'
@@ -69,12 +86,12 @@ Ext.define('Rambox.view.add.Add',{
 									items: [
 										{
 											 text: me.edit ? (me.service.get('url').indexOf('___') === -1 ? 'Official Server' : Ext.String.endsWith(me.service.get('url'), '/') ? me.service.get('url').split('___')[1].slice(0, -1) : me.service.get('url').split('___')[1]) : (me.record.get('url').indexOf('___') === -1 ? 'Official Server' : Ext.String.endsWith(me.record.get('url'), '/') ? me.record.get('url').split('___')[1].slice(0, -1) : me.record.get('url').split('___')[1])
-											,checked: me.edit ? (me.service.get('custom_domain') && me.service.get('url') === me.record.get('url') ? true : Ext.String.endsWith(me.record.get('url'), me.service.get('url').split('___')[1])) : true
+											,checked: me.edit ? (me.service.get('custom_domain') && me.service.get('url') === me.record.get('url') ? true : Ext.String.endsWith(me.record.get('url').endsWith('/') ? me.record.get('url').slice(0, -1) : me.record.get('url'), me.service.get('url').split('___')[1])) : true
 											,disabled: me.edit ? me.service.get('url') === '___' : me.record.get('url') === '___'
 										}
 										,{
 											 text: 'Custom Server'
-											,checked: me.edit ? (me.service.get('custom_domain') && me.service.get('url') === me.record.get('url') ? false : !Ext.String.endsWith(me.record.get('url'), me.service.get('url').split('___')[1])) : false
+											,checked: me.edit ? (me.service.get('custom_domain') && me.service.get('url') === me.record.get('url') ? false : !Ext.String.endsWith(me.record.get('url').endsWith('/') ? me.record.get('url').slice(0, -1) : me.record.get('url'), me.service.get('url').split('___')[1])) : false
 											,custom: true
 											,disabled: me.edit ? !me.service.get('custom_domain') : !me.record.get('custom_domain')
 										}
@@ -86,7 +103,7 @@ Ext.define('Rambox.view.add.Add',{
 								}
 								,changeHandler: function(cycleBtn, activeItem) {
 									Ext.apply(cycleBtn.previousSibling(), {
-										 emptyText: activeItem.custom ? 'http://' : ' '
+										 emptyText: activeItem.custom ? 'https://' : ' '
 										,vtype: activeItem.custom ? 'url' : ''
 									});
 									cycleBtn.previousSibling().applyEmptyText();
@@ -100,6 +117,8 @@ Ext.define('Rambox.view.add.Add',{
 										activeItem.custom ? cycleBtn.previousSibling().setValue('') : cycleBtn.previousSibling().reset();
 									}
 
+									cycleBtn.previousSibling().previousSibling().setHidden(activeItem.custom ? true : me.edit ? me.service.get('url').indexOf('___') === -1 ? true : me.service.get('type') === 'custom' || me.service.get('url') === '___' : me.record.get('url').indexOf('___') === -1 ? true : me.record.get('type') === 'custom' || me.record.get('url') === '___');
+
 									cycleBtn.previousSibling().setReadOnly( activeItem.custom ? false : (me.edit ? me.service.get('url').indexOf('___') === -1 : me.record.get('url').indexOf('___') === -1) );
 									cycleBtn.nextSibling().setValue( activeItem.custom ? 2 : 1 );
 								}
@@ -107,95 +126,133 @@ Ext.define('Rambox.view.add.Add',{
 							,{
 								 xtype: 'hiddenfield'
 								,name: 'cycleValue'
-								,value: me.edit ? (me.service.get('custom_domain') && me.service.get('url') === me.record.get('url') ? 1 : (!Ext.String.endsWith(me.record.get('url'), me.service.get('url').split('___')[1]) ? 2 : 1)) : 1
+								,value: me.edit ? (me.service.get('custom_domain') && me.service.get('url') === me.record.get('url') ? 1 : (!Ext.String.endsWith(me.record.get('url').endsWith('/') ? me.record.get('url').slice(0, -1) : me.record.get('url'), me.service.get('url').split('___')[1]) ? 2 : 1)) : 1
 							}
 						]
 					}
 					,{
 						 xtype: 'textfield'
-						,fieldLabel: 'Logo'
-						,emptyText: 'http://url.com/image.png'
+						,fieldLabel: locale['app.window[18]']
+						,emptyText: 'https://url.com/image.png'
 						,name: 'logo'
 						,vtype: me.record.get('type') === 'custom' ? 'url' : ''
 						,value: me.record.get('type') === 'custom' ? (me.edit ? me.record.get('logo') : '') : me.record.get('logo')
 						,allowBlank: true
 						,hidden: me.record.get('type') !== 'custom'
+						,labelWidth: 40
 						,margin: '5 0 0 0'
 						,listeners: { specialkey: 'onEnter' }
 					}
 					,{
 						 xtype: 'fieldset'
-						,title: 'Options'
+						,title: locale['app.window[3]']
 						,margin: '10 0 0 0'
 						,items: [
 							{
-								 xtype: 'checkbox'
-								,boxLabel: 'Align to Right'
-								,checked: me.edit ? (me.record.get('align') === 'right' ? true : false) : false
-								,name: 'align'
-								,uncheckedValue: 'left'
-								,inputValue: 'right'
-							}
-							,{
-								 xtype: 'checkbox'
-								,boxLabel: 'Show notifications'
-								,name: 'notifications'
-								,checked: me.edit ? me.record.get('notifications') : true
-								,uncheckedValue: false
-								,inputValue: true
-							}
-							,{
-								 xtype: 'checkbox'
-								,boxLabel: 'Mute all sounds'
-								,name: 'muted'
-								,checked: me.edit ? me.record.get('muted') : false
-								,uncheckedValue: false
-								,inputValue: true
-							}
-							,{
-								 xtype: 'checkbox'
-								,boxLabel: 'Trust invalid authority certificates'
-								,name: 'trust'
-								,hidden: me.record.get('type') !== 'custom'
-								,checked: me.edit ? me.record.get('trust') : true
-								,uncheckedValue: false
-								,inputValue: true
+								 xtype: 'checkboxgroup'
+								,columns: 2
+								,items: [
+									{
+										 xtype: 'checkbox'
+										,boxLabel: locale['app.window[4]']
+										,checked: me.edit ? (me.record.get('align') === 'right' ? true : false) : false
+										,name: 'align'
+										,uncheckedValue: 'left'
+										,inputValue: 'right'
+									}
+									,{
+										 xtype: 'checkbox'
+										,boxLabel: locale['app.window[6]']
+										,name: 'muted'
+										,checked: me.edit ? me.record.get('muted') : false
+										,uncheckedValue: false
+										,inputValue: true
+									}
+									,{
+										 xtype: 'checkbox'
+										,boxLabel: 'Show service name in Tab'
+										,name: 'tabname'
+										,checked: me.edit ? me.record.get('tabname') : true
+										,uncheckedValue: false
+										,inputValue: true
+									}
+									,{
+										 xtype: 'checkbox'
+										,boxLabel: locale['app.window[5]']
+										,name: 'notifications'
+										,checked: me.edit ? me.record.get('notifications') : true
+										,uncheckedValue: false
+										,inputValue: true
+									}
+									,{
+										 xtype: 'checkbox'
+										,boxLabel: 'Always display Status Bar'
+										,name: 'statusbar'
+										,checked: me.edit ? me.record.get('statusbar') : true
+										,uncheckedValue: false
+										,inputValue: true
+									}
+									,{
+										xtype: 'checkbox'
+										,boxLabel: 'Disable auto-reload on fail'
+										,name: 'disableAutoReloadOnFail'
+										,hidden: false
+										,checked: me.edit ? me.record.get('disableAutoReloadOnFail') : false
+										,uncheckedValue: false
+										,inputValue: true
+									}
+									,{
+										 xtype: 'checkbox'
+										,boxLabel: locale['app.window[19]']
+										,name: 'trust'
+										,hidden: me.record.get('type') !== 'custom'
+										,checked: me.edit ? me.record.get('trust') : false
+										,uncheckedValue: false
+										,inputValue: true
+									}
+								]
 							}
 						]
-					},
-					{
-						xtype: 'fieldset',
-						title: 'Unread counter',
-						margin: '10 0 0 0',
-						items: [
-							{
-								xtype: 'checkbox',
-								boxLabel: 'Display tab unread counter',
-								name: 'displayTabUnreadCounter',
-								checked: me.edit ? me.record.get('displayTabUnreadCounter') : true,
-								uncheckedValue: false,
-								inputValue: true
-							},
-							{
-								xtype: 'checkbox',
-								boxLabel: 'Include in global unread counter',
-								name: 'includeInGlobalUnreadCounter',
-								checked: me.edit ? me.record.get('includeInGlobalUnreadCounter') : true,
-								uncheckedValue: false,
-								inputValue: true
-							}
-						]
-					},
-					{
+					}
+					,{
 						 xtype: 'fieldset'
-						,title: 'Advanced'
+						,title: 'Unread counter'
+						,margin: '10 0 0 0'
+						,items: [
+							{
+								 xtype: 'checkboxgroup'
+								,columns: 2
+								,items: [
+									{
+										xtype: 'checkbox',
+										boxLabel: 'Display tab unread counter',
+										name: 'displayTabUnreadCounter',
+										checked: me.edit ? me.record.get('displayTabUnreadCounter') : true,
+										uncheckedValue: false,
+										inputValue: true
+									},
+									{
+										xtype: 'checkbox',
+										boxLabel: 'Include in global unread counter',
+										name: 'includeInGlobalUnreadCounter',
+										checked: me.edit ? me.record.get('includeInGlobalUnreadCounter') : true,
+										uncheckedValue: false,
+										inputValue: true
+									}
+								]
+							}
+						]
+					}
+					,{
+						 xtype: 'fieldset'
+						,title: locale['app.window[7]']
 						,margin: '10 0 0 0'
 						,collapsible: true
 						,collapsed: true
 						,items: [
 							{
 								 xtype: 'textarea'
-								,fieldLabel: 'Custom Code (<a href="https://github.com/saenzramiro/rambox/wiki/Inject-JavaScript-Code" target="_blank">read more</a>)'
+								,fieldLabel: locale['app.window[8]']+' (<a href="https://github.com/saenzramiro/rambox/wiki/Inject-JavaScript-Code" target="_blank">'+locale['app.window[9]']+'</a>)'
 								,allowBlank: true
 								,name: 'js_unread'
 								,value: me.edit ? me.record.get('js_unread') : ''
@@ -221,7 +278,7 @@ Ext.define('Rambox.view.add.Add',{
 
 		me.buttons = [
 			{
-				 text: 'Cancel'
+				 text: locale['button[1]']
 				,ui: 'decline'
 				,handler: 'doCancel'
 			}
